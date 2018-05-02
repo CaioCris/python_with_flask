@@ -10,8 +10,13 @@ class Items(Resource):
 
         query = "SELECT * FROM items"
         result = cursor.execute(query)
+        #items = result.fetchall()
+        items = []
+        for row in result:
+            items.append({'name': row[0], 'price': row[1]})
+
         connection.close()
-        return {'items': result}
+        return {'items': items}
 
 
 class Item(Resource):
@@ -49,7 +54,7 @@ class Item(Resource):
         connection = sqlite3.connect('data.db')
         cursor = connection.cursor()
 
-        query = "UPDATE {table} SET price=? WHERE name=?".format(table=cls.TABLE_NAME)
+        query = "UPDATE items SET price=? WHERE name=?"
         cursor.execute(query, (item['price'], item['name']))
 
         connection.commit()
@@ -71,7 +76,8 @@ class Item(Resource):
         item = {'name': name, 'price': request_data['price']}
         try:
             self.insert(item)
-        except:
+        except Exception as error:
+            print(error)
             return {'message': 'An error occurred inserting the item'}, 500
 
         return item, 201
@@ -91,12 +97,20 @@ class Item(Resource):
     @jwt_required()
     def put(self, name):
         request_data = Item.parser.parse_args()
-        item = self.insert(name)
+        item = self.find_by_name(name)
         update_item = {'name': name, 'price': request_data['price']}
 
         if item:
-            self.update(update_item)
+            try:
+                self.update(update_item)
+            except Exception as error:
+                print(error)
+                return {'message': 'An error occurred updating the item'}, 500
         else:
-            self.insert(update_item)
+            try:
+                self.insert(update_item)
+            except Exception as error:
+                print(error)
+                return {'message': 'An error occurred inserting the item'}, 500
 
         return item
